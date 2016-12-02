@@ -1,0 +1,185 @@
+# This file is part of libertine linux's package bash. It is subject to the licence terms in the COPYRIGHT file found in the top-level directory of this distribution and at https://raw.githubusercontent.com/libertine-linux-packages/libertine/master/COPYRIGHT. No part of libertine linux's package bash, including this file, may be copied, modified, propagated, or distributed except according to the terms contained in the COPYRIGHT file.
+# Copyright © 2016 The developers of libertine linux's package bash. See the COPYRIGHT file in the top-level directory of this distribution and at https://raw.githubusercontent.com/libertine-linux-packages/libertine/master/COPYRIGHT.
+
+
+variant=upstream
+
+depends build_ccache
+build_needs ccache
+
+depends build_gnumake
+build_needs make
+
+depends build_slibtool
+build_needs clibtool-static libtoolize realpath
+
+depends build_perl
+build_needs perl
+
+depends build_gnuconfig
+
+depends build_autoconf
+build_needs autoconf autoheader autom4te autoreconf autoscan autoupdate ifnames
+
+depends build_automake
+build_needs automake aclocal
+
+depends build_gnum4
+build_needs m4
+
+depends build_bison
+build_needs bison
+
+depends build_busybox
+build_needs sort dirname install expr ls sleep test uname basename echo egrep cmp
+
+case "$package" in
+	
+	build_bash)
+		
+		depends build_musl_cross_make_build
+		build_needs "$libertine_build"-cc "$libertine_build"-gcc "$libertine_build"-ar "$libertine_build"-ld "$libertine_build"-ranlib
+		
+		build_provides bash
+		
+		libertine_compile_build_bash()
+		{
+			_libertine_compile_bash false
+		}
+	;;
+	
+	bash)
+		
+		depends build_musl_cross_make_build
+		build_needs "$libertine_build"-cc "$libertine_build"-gcc "$libertine_build"-ar "$libertine_build"-ld "$libertine_build"-ranlib
+		
+		depends build_musl_cross_make_host
+		build_needs "$libertine_host"-cc "$libertine_host"-gcc "$libertine_host"-ar "$libertine_host"-ld "$libertine_host"-ranlib "$libertine_host"-strip
+
+		libertine_compile_bash()
+		{
+			_libertine_compile_bash true
+		}
+		
+	;;
+
+esac
+
+build_needs rm sed cp mkdir ln
+_libertine_compile_bash()
+{
+	local strip="$1"
+	
+	pushd "$(libertine_public_sourcePath)"
+
+		libertine_public_autoconf_replaceWithKnownVersionOfConfigSub support/config.sub
+		libertine_public_autoconf_replaceWithKnownVersionOfConfigGuess support/config.guess
+		libertine_public_autoconf_replaceWithKnownVersionOfConfigRpath support/config.rpath
+		libertine_public_autoconf_replaceWithKnownVersionOfInstallSh support/install.sh
+		libertine_public_autoconf_replaceWithKnownVersionOfMissing support/missing
+		libertine_public_autoconf_replaceWithKnownVersionOfMkinstalldirs support/mkinstalldirs
+		
+		libertine_public_autoconf_adjustConfigureAcToRemoveGnuTextCruftBeforeAutoconf
+		
+		#rm -rf configure configure.in
+		
+		# sed -i \
+		# 	-e 's;AC_DEFINE(\([A-Z0-9_]*\), \(.*\));AC_DEFINE([\1], [\2], [Description]);g' \
+		# 	-e 's;AC_DEFINE_UNQUOTED(\([A-Z0-9_]*\), \(.*\));AC_DEFINE_UNQUOTED([\1], [\2], [Description]);g' \
+		# 	-e 's;AC_DEFINE(\([A-Z0-9_]*\));AC_DEFINE([\1], [], [Description]);g' \
+		# 	-e 's;AC_DEFINE_UNQUOTED(\([A-Z0-9_]*\));AC_DEFINE_UNQUOTED([\1], [], [Description]);g' \
+		# 	configure.ac aclocal.m4
+		
+		#autoreconf --install --force --verbose || true
+		
+		local autoconfFunction
+		if $strip; then
+			autoconfFunction=libertine_public_autoconf_modernAutoconfConfigure
+		else
+			autoconfFunction=libertine_public_autoconf_modernAutoconfConfigureForBuild
+		fi
+		
+		if $strip; then
+			ln -s "$libertine_build"-gcc "$(libertine_public_PATH)"/gcc
+		fi
+		
+		$autoconfFunction \
+			--enable-alias \
+			--enable-arith-for-command \
+			--enable-array-variables \
+			--enable-brace-expansion \
+		    --enable-casemod-attributes \
+		    --enable-casemod-expansions \
+		    --enable-command-timing \
+		    --enable-cond-command \
+		    --enable-cond-regexp \
+		    --enable-coprocesses \
+		    --enable-directory-stack \
+		    --enable-dparen-arithmetic \
+		    --enable-extended-glob \
+		    --enable-extended-glob-default \
+		    --enable-glob-asciiranges-default \
+		    --enable-help-builtin \
+		    --enable-history \
+		    --enable-job-control \
+		    --enable-multibyte \
+		    --enable-net-redirections \
+		    --enable-process-substitution \
+		    --enable-progcomp \
+		    --enable-restricted \
+		    --enable-select \
+		    --enable-mem-scramble \
+		    --enable-static-link \
+				--without-bash-malloc \
+				--disable-nls --disable-rpath -without-libiconv-prefix --with-included-gettext --without-libintl-prefix
+		
+		# Fixes for broken cross-compilation tests in bash
+		sed -i \
+			-e '/#define JOB_CONTROL_MISSING 1/d' \
+			-e '/#define GETCWD_BROKEN 1/d' \
+			-e '/#define USING_BASH_MALLOC 1/d' \
+			-e '/#define WCONTINUED_BROKEN 1/d' \
+			-e '/#define DEFAULT_MAIL_DIRECTORY/d' \
+			config.h
+		{
+			printf '#define %s "%s"\n' 'DEFAULT_MAIL_DIRECTORY' '/var/spool/mail'
+			
+			printf '%s\n' '#define JOB_CONTROL 1'
+
+			printf '%s\n' '#define HAVE_STRSIGNAL 1'
+			printf '%s\n' '#define HAVE_DLCLOSE 1'
+			printf '%s\n' '#define HAVE_DLOPEN 1'
+			printf '%s\n' '#define HAVE_DLSYM 1'
+			printf '%s\n' '#define HAVE_SETREGID 1'
+			printf '%s\n' '#define HAVE_POSIX_SIGSETJMP 1'
+			printf '%s\n' '#define HAVE_MALLOC 1'
+			printf '%s\n' '#define HAVE_NL_LANGINFO 1'
+		} >>config.h
+		sed -i -e 's;#include <stdio.h>;#include <stdio.h>\n#include <stdio_ext.h>;g' -e 's/fpurge/__fpurge/g' builtins/common.c execute_cmd.c redir.c
+		sed -i -e 's;#include "execute_cmd.h";#include "execute_cmd.h"\n#include "trap.h";g' nojobs.c redir.c
+		sed -i -e 's;#include <stdc.h>;#include <stdc.h>\n#include <langinfo.h>;g' -e 's/codeset = nl_langinfo/char * codeset = nl_langinfo/g' lib/sh/unicode.c
+		sed -i -e 's;#include <config.h>;#include <config.h>\n#include <unistd.h>;g' lib/termcap/tparam.c
+		sed -i -e 's;JOBS_O = nojobs.o;JOBS_O = jobs.o;g' Makefile
+				
+		libertine_public_autoconf_removePoToRemoveGnuTextCruftBeforeMake
+
+		# Bash's makefile isn't trully parallel
+		libertine_public_make y.tab.c
+		libertine_public_make builtins/libbuiltins.a
+		libertine_public_make
+		
+		if $strip; then
+			local binFolderPath="$(libertine_public_outputInitramfsPath)"/usr/bin
+			mkdir -m 0755 -p "$binFolderPath"
+			cp bash "$binFolderPath"
+			"$libertine_host"-strip "$binFolderPath"/bash
+	
+			libertine_public_copy_filesystem "$(libertine_public_packagePath)"/filesystem/ "$(libertine_public_outputInitramfsPath)"/
+		else
+			local binFolderPath="$(libertine_public_outputBuildSysrootPath)"/usr/bin
+			mkdir -m 0755 -p "$binFolderPath"
+			cp bash "$binFolderPath"
+		fi
+		
+	popd
+}
