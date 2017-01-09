@@ -100,7 +100,7 @@ _libertine_compile_bash()
 		fi
 		
 		if $strip; then
-			ln -s "$libertine_build"-gcc "$(libertine_public_PATH)"/gcc
+			ln -s "$libertine_build"-gcc "$(libertine_public_buildNeedsPath)"/gcc
 		fi
 		
 		$autoconfFunction \
