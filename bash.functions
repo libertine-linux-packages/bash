@@ -31,7 +31,7 @@ depends build_bison
 build_needs bison
 
 depends build_busybox
-build_needs sort dirname install expr ls sleep test uname basename echo egrep cmp
+build_needs sort dirname install expr ls sleep test uname basename echo egrep cmp true
 
 case "$package" in
 	
