@@ -172,7 +172,7 @@ _libertine_compile_bash()
 			local binFolderPath="$(libertine_public_outputInitramfsPath)"/usr/bin
 			mkdir -m 0755 -p "$binFolderPath"
 			cp bash "$binFolderPath"
-			"$libertine_host"-strip "$binFolderPath"/bash
+			libertine_public_stripAndSecureBinary "$binFolderPath"/bash
 	
 			libertine_public_copy_filesystem "$(libertine_public_packagePath)"/filesystem/ "$(libertine_public_outputInitramfsPath)"/
 		else
