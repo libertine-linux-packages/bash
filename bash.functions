@@ -31,6 +31,7 @@ depends build_bison
 build_needs bison
 
 depends build_busybox
+depends build_netbsd_src_sleep
 build_needs sort dirname install expr ls sleep test uname basename echo egrep cmp true
 
 case "$package" in
